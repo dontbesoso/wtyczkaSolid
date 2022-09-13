@@ -1,0 +1,48 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>NET40</TargetFramework>
+    <Version>219.0.0</Version>
+    <Authors>Jason Newell</Authors>
+    <Company>Jason Newell</Company>
+    <Description>Community provided package for developing Solid Edge AddIns.</Description>
+    <PackageIconUrl>https://raw.githubusercontent.com/SolidEdgeCommunity/SolidEdge.Community/master/media/icon.png</PackageIconUrl>
+    <PackageProjectUrl>https://github.com/SolidEdgeCommunity/SolidEdge.Community</PackageProjectUrl>
+    <PackageLicenseUrl>https://github.com/SolidEdgeCommunity/SolidEdge.Community/blob/master/LICENSE.md</PackageLicenseUrl>
+    <RepositoryUrl>https://github.com/SolidEdgeCommunity/SolidEdge.Community.AddIn.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>bin\Release\net40\SolidEdge.Community.AddIn.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="build\SolidEdge.Community.AddIn.targets" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Interop.SolidEdge" Version="219.0.0">
+      <PrivateAssets>None</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Windows.Forms" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="build\**\*">
+      <Pack>true</Pack>
+      <PackagePath>build\</PackagePath>
+    </Content>
+    <Content Include="tools\**\*">
+      <Pack>true</Pack>
+      <PackagePath>tools\</PackagePath>
+    </Content>
+  </ItemGroup>
+
+  <Import Project="SolidEdge.Community.AddIn.targets" />
+  
+</Project>
