@@ -112,6 +112,26 @@ namespace TestAddIn
             }
         }
 
+        static void delOldCatalogEntrySQL()
+        {
+            SqlConnection cnn;
+            string connetionString = "Data Source=metrix-sql;Initial Catalog=Adam_Asprova;User ID=amada;Password=amada";
+            cnn = new SqlConnection(connetionString);
+            try
+            {
+                cnn.Open();
+                string queryUpdate = "UPDATE itWydaniaDokumentacji SET isActive = 0 WHERE elementName = @elementName";
+                SqlCommand command_update = new SqlCommand(queryUpdate, cnn);
+                command_update.Parameters.AddWithValue("@elementName", elementName);
+                command_update.ExecuteNonQuery();
+
+                cnn.Close();
+            } catch(Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+        }
+
         static void genCatalogEntrySQL(string parOperationNumber, string parOperationPage, string parPath, string parFileName)
         {
             string connetionString = null;
@@ -124,16 +144,6 @@ namespace TestAddIn
             try
             {
                 cnn.Open();
-
-                string queryUpdate = "UPDATE itWydaniaDokumentacji SET isActive = 0 WHERE elementName = @elementName AND operationPage = @operationPage AND operationNumber = @operationNumber";
-
-                SqlCommand command_update = new SqlCommand(queryUpdate, cnn);
-
-                command_update.Parameters.AddWithValue("@elementName", elementName);
-                command_update.Parameters.AddWithValue("@operationPage", parOperationPage);
-                command_update.Parameters.AddWithValue("@operationNumber", parOperationNumber);
-
-                command_update.ExecuteNonQuery();
 
                 String queryInsert = "INSERT INTO itWydaniaDokumentacji ( sessionId, elementName, elementRev, operationNumber, operationPage, genPerson, genDate, genSource, filePath, fileName, isActive) VALUES (@sessionId, @elementName ,@elementRev ,@operationNumber, @operationPage, @genPerson, @genDate, @genSource, @filePath, @fileName, @isActive)";
 
@@ -219,7 +229,6 @@ namespace TestAddIn
 
             objDraftDocument = (SolidEdgeFramework.SolidEdgeDocument)objApplication.ActiveDocument;
 
-
             string longStrona = String.Format("{0:0000}", strona);
 
             string sqlPath = projectExportPath;
@@ -230,7 +239,6 @@ namespace TestAddIn
             if (File.Exists(fileName)) { 
                 File.Delete(fileName); 
             }
-            
             objDraftDocument.SaveAs(fileName, null, true, null, null, null, null, null, null);
         }
 
@@ -312,7 +320,6 @@ namespace TestAddIn
                 result.Close();
                 command_getSession.Dispose();
                 cnn.Close();
-
                 sessionTimestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
             }
@@ -320,19 +327,14 @@ namespace TestAddIn
             {
                 MessageBox.Show(e.Message, "JSON", MessageBoxButtons.OK);
             }
-
-            
-
         }
 
         static void processFile(TextBox txtName, TextBox txtDate, TextBox txtWho, Button prcButton, TextBox txtBoxLog)
         {
             SolidEdgeFramework.Application objApplication = null;
             SolidEdgeFramework.SolidEdgeDocument objDraftDocument = null;
-
             try
             {
-                
 
                 objApplication = (SolidEdgeFramework.Application)Marshal.GetActiveObject("SolidEdge.Application");
                 objDraftDocument = (SolidEdgeFramework.SolidEdgeDocument)objApplication.ActiveDocument;
@@ -382,78 +384,68 @@ namespace TestAddIn
 
         }
 
-        static void putStampAndExport(int start, int stop, string ktoWydal, string dataWydania, string coWydal, string revWydania, string nrOperacji, TextBox textBoxLog)
+        static string getSheetSize(SolidEdgeDraft.SheetSetup objSheetSetup)
         {
+            double sheetWidth = objSheetSetup.SheetWidth;
+            double sheetHeight = objSheetSetup.SheetHeight;
 
+            if ((sheetWidth == 0.210) && (sheetHeight == 0.297))
+                return "A4";
+            if ((sheetWidth == 0.297) && (sheetHeight == 0.210))
+                return "A4R";
+            if ((sheetWidth == 0.297) && (sheetHeight == 0.420))
+                return "A3";
+            if ((sheetWidth == 0.420) && (sheetHeight == 0.297))
+                return "A3R";
+
+            return null;
+        }
+
+
+
+
+            static void putStampAndExport(int start, int stop, string ktoWydal, string dataWydania, string coWydal, string revWydania, string nrOperacji, TextBox textBoxLog)
+        {
             SolidEdgeFramework.Application objApplication = null;
             SolidEdgeDraft.DraftDocument objDraftDocument = null;
-
             SolidEdgeDraft.Sections objSections = null;
             SolidEdgeDraft.Section objSection = null;
-
             SolidEdgeDraft.SectionSheets objSheets = null;
             SolidEdgeDraft.Sheet objSheet = null;
-
             SolidEdgeDraft.SheetSetup objSheetSetup = null;
-
-
             SolidEdgeFrameworkSupport.TextBoxes objTextBoxes = null;
             SolidEdgeFrameworkSupport.TextBox textBox = null;
-
-
 
             try
             {
                 objApplication = (SolidEdgeFramework.Application)Marshal.GetActiveObject("SolidEdge.Application");
-
                 objDraftDocument = (SolidEdgeDraft.DraftDocument)objApplication.ActiveDocument;
-
                 objSections = objDraftDocument.Sections;
-
                 objSection = objSections.Item(1);
-
                 objSheets = objSection.Sheets;
+                objSheet = objSheets.Item(start);
+                objSheetSetup = objSheet.SheetSetup;
 
+                string sheetSize = getSheetSize(objSheetSetup);
+
+                objTextBoxes = (SolidEdgeFrameworkSupport.TextBoxes)objSheet.TextBoxes;
+
+                double targetY, targetX, targetScale;
                 
-                    
-                    objSheet = objSheets.Item(start);
-                    objSheetSetup = objSheet.SheetSetup;
-
-                    objTextBoxes = (SolidEdgeFrameworkSupport.TextBoxes)objSheet.TextBoxes;
-                    
-                    double sheetWidth = objSheetSetup.SheetWidth;
-                    double sheetHeight = objSheetSetup.SheetHeight;
-
-                    double targetY = 0.200, targetX = 0.100, targetScale = 1.1;
-
-                    if ((sheetWidth == 0.210)  && (sheetHeight == 0.297)){
-                        // format A4
-                        targetX = 0.005;
-                        targetY = 0.297;
-                        targetScale = 0.7;
-                    }   
-
-                    if ((sheetWidth == 0.297) && (sheetHeight == 0.210)){
-                        // format A4R
-                        targetX = 0.000;
-                        targetY = 0.210;
-                        targetScale = 1.1;
-                    }
-
-                    if ((sheetWidth == 0.297) && (sheetHeight == 0.420)){
-                        // format A3
-                        targetX = 0.005;
-                        targetY = 0.418;
-                        targetScale = 1.1;
-                    }
-
-                    if ((sheetWidth == 0.420) && (sheetHeight == 0.297)){
-                        // format A3R
-                        targetX = 0.000;
-                        targetY = 0.297;
-                        targetScale = 1.1;
-                    }
-
+                switch (sheetSize)
+                {
+                    case "A4": targetX = 0.005; targetY = 0.297; targetScale = 0.7;
+                        break;
+                    case "A4R": targetX = 0.000; targetY = 0.210; targetScale = 1.1;
+                        break;
+                    case "A3": targetX = 0.005; targetY = 0.418; targetScale = 1.1;
+                        break;
+                    case "A3R": targetX = 0.000; targetY = 0.297; targetScale = 1.1;
+                        break;
+                    default: targetX = 0.100; targetY = 0.200; targetScale = 1.1;
+                        break;
+                }
+        
                     textBox = objTextBoxes.Add(targetX, targetY, 0); 
                 
                     textBox.TextScale = targetScale;
@@ -466,6 +458,7 @@ namespace TestAddIn
                     textBox.FillColor = 128 * 65536 + 128 * 256 + 0;
                     textBox.BorderOffset = 2;
                     textBox.Edit.Font = "Arial";
+
                     generujPdfPoStronie(start, coWydal, nrOperacji, textBoxLog);
                     textBox.Delete();
 
@@ -486,10 +479,9 @@ namespace TestAddIn
 
         private void button2_Click(object sender, EventArgs e)
         {
-
-
             initSession();
-
+            delOldCatalogEntrySQL();
+            
             if (textBox4.Text == "")
             {
                 string errorMessageCaption = "Wystąpił błąd";
@@ -519,6 +511,7 @@ namespace TestAddIn
             SolidEdgeDraft.Sheet sheet = null;
 
             SolidEdgeFrameworkSupport.TextBoxes objTextBoxs = null;
+            SolidEdgeFrameworkSupport.TextBox objTextBox = null;
 
             string operationNumber = "";
 
@@ -541,24 +534,20 @@ namespace TestAddIn
                     sheet.Activate();
                     objTextBoxs = (SolidEdgeFrameworkSupport.TextBoxes)sheet.TextBoxes;
 
-                    for (int k = 1; k < objTextBoxs.Count; k++)
+                    for (int k = 1; k <= objTextBoxs.Count; k++)
                     {
-                        int digitCount = 0;
-                        
-                        if (Regex.IsMatch(usunSpecjalne(objTextBoxs.Item(k).Text), @"(^\d{2}$)|(^\d{3}$)"))
+                        if ((Regex.IsMatch(usunSpecjalne(objTextBoxs.Item(k).Text), @"(^\d{2}$)|(^\d{3}$)")) && ((int.Parse(usunSpecjalne(objTextBoxs.Item(k).Text))) % 5 == 0))   
                         {
-                            digitCount++;
-                            operationNumber = usunSpecjalne(objTextBoxs.Item(k).Text);
-                            if (j == 1) tmpOperationNumber = operationNumber;
-   
+                                objTextBox = objTextBoxs.Item(k);
+                                operationNumber = usunSpecjalne(objTextBox.Text);
+                                if (j == 1) tmpOperationNumber = operationNumber;
+
                                 tmpOperationNumber = operationNumber;
                                 tmpPage = j;
+                            
                         }
                     }
                     putStampAndExport(j, j - 1, xlsOsoba, xlsData, elementName, elementRev, tmpOperationNumber, textBoxLog);
-                    
-
-                    
                 }
                 mergeToPdfRange_simple(projectExportPath, elementName);
 
