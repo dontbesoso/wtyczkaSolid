@@ -13,6 +13,8 @@ namespace TestAddIn
         public string dbUser { get; set; }
         public string dbPass { get; set; }
         public string dbName { get; set; }
+
+        public bool debugMode { get; set; }
         
     }
 }

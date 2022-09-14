@@ -49,15 +49,13 @@ namespace TestAddIn
         
         public static string configFileName = @"C:\\solidComponent\\config.json";
 
-
+        public static bool debugMode = false;
 
         public Form1()
         {
             InitializeComponent();
             loadAppConfig();
             processFile(textBox2, textBox1, textBox4, button3, textBoxLog);
-
-            //textBox4.Enabled = false;
         }
 
 
@@ -108,7 +106,10 @@ namespace TestAddIn
                 string sqlFullPath = filePath + "\\" + elementName + "_" + tmpOperations[i] + ".pdf";
                 string sqlFileName = elementName + "_" + tmpOperations[i] + ".pdf";
 
-                genCatalogEntrySQL(tmpOperations[i], (i+1).ToString(), sqlFullPath, sqlFileName);
+                if (!debugMode)
+                {
+                    genCatalogEntrySQL(tmpOperations[i], (i+1).ToString(), sqlFullPath, sqlFileName);
+                }
             }
         }
 
@@ -206,7 +207,7 @@ namespace TestAddIn
                 }
          }
 
-        public static string usunSpecjalne(string input)
+        public static string usunSpecjalne(string input, TextBox textBoxLog)
         {
             Regex r = new Regex("(?:[^a-z0-9]|(?<=['\"])s)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
             return r.Replace(input, String.Empty);
@@ -288,6 +289,7 @@ namespace TestAddIn
                     {
                         registryPath = item.registryPath;
                         exportIdentity = item.exportIdentity;
+                        debugMode = item.debugMode;
                     }
                 }
             } catch(Exception e) {
@@ -341,7 +343,6 @@ namespace TestAddIn
 
                 // sprawdź warunki wejściowe!
 
-
                 int indeks = objDraftDocument.Name.IndexOf(" ");
 
                 projectExportPath =  objDraftDocument.Path + "\\" + "dokumentacjaPDF";
@@ -359,7 +360,10 @@ namespace TestAddIn
                     txtName.Text = xlsName;
                 } else
                 {
-                    prcButton.Enabled = false;
+                    if (!debugMode)
+                    {
+                        prcButton.Enabled = false;
+                    }
                     txtBoxLog.AppendText(string.Format("\r\nNie zanleziono wpisu dla elementu: {0}\r\nEksport dokumentacji jest niemożliwy.", elementName));
                     txtBoxLog.AppendText("Upewnij się, że plik eksportu posiada właściwą nazwę: \"<element> <rewizja> .dft\"");
                 }
@@ -401,10 +405,6 @@ namespace TestAddIn
 
             return null;
         }
-
-
-
-
             static void putStampAndExport(int start, int stop, string ktoWydal, string dataWydania, string coWydal, string revWydania, string nrOperacji, TextBox textBoxLog)
         {
             SolidEdgeFramework.Application objApplication = null;
@@ -416,7 +416,6 @@ namespace TestAddIn
             SolidEdgeDraft.SheetSetup objSheetSetup = null;
             SolidEdgeFrameworkSupport.TextBoxes objTextBoxes = null;
             SolidEdgeFrameworkSupport.TextBox textBox = null;
-
             try
             {
                 objApplication = (SolidEdgeFramework.Application)Marshal.GetActiveObject("SolidEdge.Application");
@@ -429,6 +428,7 @@ namespace TestAddIn
                 objSheetSetup = objSheet.SheetSetup;
 
                 string sheetSize = getSheetSize(objSheetSetup);
+
 
                 objTextBoxes = (SolidEdgeFrameworkSupport.TextBoxes)objSheet.TextBoxes;
 
@@ -447,8 +447,7 @@ namespace TestAddIn
                     default: targetX = 0.100; targetY = 0.200; targetScale = 1.1;
                         break;
                 }
-        
-                    textBox = objTextBoxes.Add(targetX, targetY, 0); 
+                textBox = objTextBoxes.Add(targetX, targetY, 0); 
                 
                     textBox.TextScale = targetScale;
                     textBox.TextControlType = SolidEdgeFrameworkSupport.TextControlTypeConstants.igTextFitToContent;
@@ -460,8 +459,7 @@ namespace TestAddIn
                     textBox.FillColor = 128 * 65536 + 128 * 256 + 0;
                     textBox.BorderOffset = 2;
                     textBox.Edit.Font = "Arial";
-
-                    generujPdfPoStronie(start, coWydal, nrOperacji, textBoxLog);
+                generujPdfPoStronie(start, coWydal, nrOperacji, textBoxLog);
                     
                     textBox.Delete();
 
@@ -482,8 +480,11 @@ namespace TestAddIn
 
         private void button2_Click(object sender, EventArgs e)
         {
-            initSession();
-            delOldCatalogEntrySQL();
+            if (!debugMode)
+            {
+                initSession();
+                delOldCatalogEntrySQL();
+            }
             
             if (textBox4.Text == "")
             {
@@ -511,54 +512,40 @@ namespace TestAddIn
             SolidEdgeDraft.Section section = null;
 
             SolidEdgeDraft.SectionSheets sectionSheets = null;
-            SolidEdgeDraft.Sheet sheet = null;
-
-            SolidEdgeFrameworkSupport.TextBoxes objTextBoxs = null;
-            SolidEdgeFrameworkSupport.TextBox objTextBox = null;
-
-            string operationNumber = "";
-
+            
             try
             {
                 objApplication = (SolidEdgeFramework.Application)Marshal.GetActiveObject("SolidEdge.Application");
                 objDraftDocument = (SolidEdgeDraft.DraftDocument)objApplication.ActiveDocument;
 
                 sections = objDraftDocument.Sections;
-                section = sections.Item(1);
-
+                section = sections.WorkingSection;
                 sectionSheets = section.Sheets;
 
                 int tmpPage = 1;
                 string tmpOperationNumber = "";
-
-                for (int j = 1; j <= sectionSheets.Count; j++)
-                { 
-                    sheet = sectionSheets.Item(j);
-                    sheet.Activate();
-                    objTextBoxs = (SolidEdgeFrameworkSupport.TextBoxes)sheet.TextBoxes;
+                foreach (SolidEdgeDraft.Sheet sheet in sectionSheets) {
+                    sheet.Activate(); 
                     bool tmpFoundPageNumber = false;
-                    for (int k = 1; k <= objTextBoxs.Count; k++)
+
+                    foreach (SolidEdgeFrameworkSupport.TextBox objTextBox in (SolidEdgeFrameworkSupport.TextBoxes)sheet.TextBoxes)
                     {
-                        if ((Regex.IsMatch(usunSpecjalne(objTextBoxs.Item(k).Text), @"(^\d{2}$)|(^\d{3}$)")) && ((int.Parse(usunSpecjalne(objTextBoxs.Item(k).Text))) % 5 == 0))   
+                        // zagnieżdżone *.asm są albo w zbiorze arkuszy, albo w zbiorze textboxes, coś w obiektach, a powiązania są zerwane
+                        if ((Regex.IsMatch(usunSpecjalne(objTextBox.Text, textBoxLog), @"(^\d{2}$)|(^\d{3}$)")) && ((int.Parse(usunSpecjalne(objTextBox.Text, textBoxLog))) % 5 == 0))
                         {
-                                objTextBox = objTextBoxs.Item(k);
-                                operationNumber = usunSpecjalne(objTextBox.Text);
-                                if (j == 1) tmpOperationNumber = operationNumber;
-                                tmpOperationNumber = operationNumber;
-                                tmpPage = j;
-                                textBoxLog.AppendText("\r\nDebug info: " + j + " : " + k + " : " + objTextBox.Text + " : " + usunSpecjalne(objTextBox.Text) + " : " + tmpOperationNumber);
+                            tmpOperationNumber = usunSpecjalne(objTextBox.Text, textBoxLog);
                             tmpFoundPageNumber = true;
-                            
                         }
                     }
-                    if (tmpFoundPageNumber)
+
+                    if (tmpFoundPageNumber == true)
                         try {
-                            putStampAndExport(tmpPage, j - 1, xlsOsoba, xlsData, elementName, elementRev, tmpOperationNumber, textBoxLog);
+                            putStampAndExport(tmpPage, tmpPage, xlsOsoba, xlsData, elementName, elementRev, tmpOperationNumber, textBoxLog);
                         } catch(Exception ex)
                         {
                             MessageBox.Show(ex.Message, "błąd", MessageBoxButtons.OK);
                         }
-                    else textBoxLog.AppendText(string.Format("\r\nNa stronie {0} nie znaleziono indeksu strony. Eksport tej ztrony został pominięty.\r\nSprawdź poprawność opisu strony {1}", j, j));
+                    else textBoxLog.AppendText(string.Format("\r\nNa stronie {0} nie znaleziono indeksu strony. Eksport tej ztrony został pominięty.\r\nSprawdź poprawność opisu tej strony", sheet.Name));
                 }
                 mergeToPdfRange_simple(projectExportPath, elementName);
 
