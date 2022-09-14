@@ -361,6 +361,7 @@ namespace TestAddIn
                 {
                     prcButton.Enabled = false;
                     txtBoxLog.AppendText(string.Format("\r\nNie zanleziono wpisu dla elementu: {0}\r\nEksport dokumentacji jest niemożliwy.", elementName));
+                    txtBoxLog.AppendText("Upewnij się, że plik eksportu posiada właściwą nazwę: \"<element> <rewizja> .dft\"");
                 }
 
                 try
@@ -421,7 +422,8 @@ namespace TestAddIn
                 objApplication = (SolidEdgeFramework.Application)Marshal.GetActiveObject("SolidEdge.Application");
                 objDraftDocument = (SolidEdgeDraft.DraftDocument)objApplication.ActiveDocument;
                 objSections = objDraftDocument.Sections;
-                objSection = objSections.Item(1);
+                //objSection = objSections.Item(1);
+                objSection = objSections.WorkingSection;
                 objSheets = objSection.Sheets;
                 objSheet = objSheets.Item(start);
                 objSheetSetup = objSheet.SheetSetup;
@@ -460,6 +462,7 @@ namespace TestAddIn
                     textBox.Edit.Font = "Arial";
 
                     generujPdfPoStronie(start, coWydal, nrOperacji, textBoxLog);
+                    
                     textBox.Delete();
 
             }
@@ -533,7 +536,7 @@ namespace TestAddIn
                     sheet = sectionSheets.Item(j);
                     sheet.Activate();
                     objTextBoxs = (SolidEdgeFrameworkSupport.TextBoxes)sheet.TextBoxes;
-
+                    bool tmpFoundPageNumber = false;
                     for (int k = 1; k <= objTextBoxs.Count; k++)
                     {
                         if ((Regex.IsMatch(usunSpecjalne(objTextBoxs.Item(k).Text), @"(^\d{2}$)|(^\d{3}$)")) && ((int.Parse(usunSpecjalne(objTextBoxs.Item(k).Text))) % 5 == 0))   
@@ -541,13 +544,21 @@ namespace TestAddIn
                                 objTextBox = objTextBoxs.Item(k);
                                 operationNumber = usunSpecjalne(objTextBox.Text);
                                 if (j == 1) tmpOperationNumber = operationNumber;
-
                                 tmpOperationNumber = operationNumber;
                                 tmpPage = j;
+                                textBoxLog.AppendText("\r\nDebug info: " + j + " : " + k + " : " + objTextBox.Text + " : " + usunSpecjalne(objTextBox.Text) + " : " + tmpOperationNumber);
+                            tmpFoundPageNumber = true;
                             
                         }
                     }
-                    putStampAndExport(j, j - 1, xlsOsoba, xlsData, elementName, elementRev, tmpOperationNumber, textBoxLog);
+                    if (tmpFoundPageNumber)
+                        try {
+                            putStampAndExport(tmpPage, j - 1, xlsOsoba, xlsData, elementName, elementRev, tmpOperationNumber, textBoxLog);
+                        } catch(Exception ex)
+                        {
+                            MessageBox.Show(ex.Message, "błąd", MessageBoxButtons.OK);
+                        }
+                    else textBoxLog.AppendText(string.Format("\r\nNa stronie {0} nie znaleziono indeksu strony. Eksport tej ztrony został pominięty.\r\nSprawdź poprawność opisu strony {1}", j, j));
                 }
                 mergeToPdfRange_simple(projectExportPath, elementName);
 
