@@ -129,6 +129,7 @@
     <Reference Include="WindowsBase" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="appHelper.cs" />
     <Compile Include="Class1.cs" />
     <Compile Include="CustomDialog.cs">
       <SubType>Form</SubType>
@@ -136,12 +137,14 @@
     <Compile Include="CustomDialog.Designer.cs">
       <DependentUpon>CustomDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="fileValidator.cs" />
     <Compile Include="Form1.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="mailHelper.cs" />
     <Compile Include="MyAddIn.cs" />
     <Compile Include="MyEdgeBarControl.cs">
       <SubType>UserControl</SubType>

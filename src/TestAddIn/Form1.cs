@@ -330,7 +330,14 @@ namespace TestAddIn
                 MessageBox.Show(e.Message, "JSON", MessageBoxButtons.OK);
             }
         }
-
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="txtName"></param>
+        /// <param name="txtDate"></param>
+        /// <param name="txtWho"></param>
+        /// <param name="prcButton"></param>
+        /// <param name="txtBoxLog"></param>
         static void processFile(TextBox txtName, TextBox txtDate, TextBox txtWho, Button prcButton, TextBox txtBoxLog)
         {
             SolidEdgeFramework.Application objApplication = null;
@@ -389,28 +396,14 @@ namespace TestAddIn
 
         }
 
-        static string getSheetSize(SolidEdgeDraft.SheetSetup objSheetSetup)
-        {
-            double sheetWidth = objSheetSetup.SheetWidth;
-            double sheetHeight = objSheetSetup.SheetHeight;
-
-            if ((sheetWidth == 0.210) && (sheetHeight == 0.297))
-                return "A4";
-            if ((sheetWidth == 0.297) && (sheetHeight == 0.210))
-                return "A4R";
-            if ((sheetWidth == 0.297) && (sheetHeight == 0.420))
-                return "A3";
-            if ((sheetWidth == 0.420) && (sheetHeight == 0.297))
-                return "A3R";
-
-            return null;
-        }
+        
             static void putStampAndExport(int start, int stop, string ktoWydal, string dataWydania, string coWydal, string revWydania, string nrOperacji, TextBox textBoxLog)
         {
             SolidEdgeFramework.Application objApplication = null;
             SolidEdgeDraft.DraftDocument objDraftDocument = null;
             SolidEdgeDraft.Sections objSections = null;
             SolidEdgeDraft.Section objSection = null;
+
             SolidEdgeDraft.SectionSheets objSheets = null;
             SolidEdgeDraft.Sheet objSheet = null;
             SolidEdgeDraft.SheetSetup objSheetSetup = null;
@@ -427,7 +420,7 @@ namespace TestAddIn
                 objSheet = objSheets.Item(start);
                 objSheetSetup = objSheet.SheetSetup;
 
-                string sheetSize = getSheetSize(objSheetSetup);
+                string sheetSize = TestAddIn.appHelper.getSheetSize(objSheetSetup);
 
 
                 objTextBoxes = (SolidEdgeFrameworkSupport.TextBoxes)objSheet.TextBoxes;
@@ -447,8 +440,9 @@ namespace TestAddIn
                     default: targetX = 0.100; targetY = 0.200; targetScale = 1.1;
                         break;
                 }
+
                 textBox = objTextBoxes.Add(targetX, targetY, 0); 
-                
+                    
                     textBox.TextScale = targetScale;
                     textBox.TextControlType = SolidEdgeFrameworkSupport.TextControlTypeConstants.igTextFitToContent;
                     textBox.VerticalAlignment = SolidEdgeFrameworkSupport.TextVerticalAlignmentConstants.igTextHzAlignVCenter;
@@ -459,7 +453,8 @@ namespace TestAddIn
                     textBox.FillColor = 128 * 65536 + 128 * 256 + 0;
                     textBox.BorderOffset = 2;
                     textBox.Edit.Font = "Arial";
-                generujPdfPoStronie(start, coWydal, nrOperacji, textBoxLog);
+                    
+                    generujPdfPoStronie(start, coWydal, nrOperacji, textBoxLog);
                     
                     textBox.Delete();
 
@@ -512,7 +507,7 @@ namespace TestAddIn
             SolidEdgeDraft.Section section = null;
 
             SolidEdgeDraft.SectionSheets sectionSheets = null;
-            
+
             try
             {
                 objApplication = (SolidEdgeFramework.Application)Marshal.GetActiveObject("SolidEdge.Application");
@@ -524,8 +519,13 @@ namespace TestAddIn
 
                 int tmpPage = 1;
                 string tmpOperationNumber = "";
-                foreach (SolidEdgeDraft.Sheet sheet in sectionSheets) {
-                    sheet.Activate(); 
+                foreach (SolidEdgeDraft.Sheet sheet in sectionSheets)
+                {
+                    sheet.Activate();
+                    
+                    SolidEdgeDraft.SheetSetup objSheetSetup = sheet.SheetSetup;
+
+
                     bool tmpFoundPageNumber = false;
 
                     foreach (SolidEdgeFrameworkSupport.TextBox objTextBox in (SolidEdgeFrameworkSupport.TextBoxes)sheet.TextBoxes)
@@ -533,20 +533,42 @@ namespace TestAddIn
                         // zagnieżdżone *.asm są albo w zbiorze arkuszy, albo w zbiorze textboxes, coś w obiektach, a powiązania są zerwane
                         if ((Regex.IsMatch(usunSpecjalne(objTextBox.Text, textBoxLog), @"(^\d{2}$)|(^\d{3}$)")) && ((int.Parse(usunSpecjalne(objTextBox.Text, textBoxLog))) % 5 == 0))
                         {
-                            tmpOperationNumber = usunSpecjalne(objTextBox.Text, textBoxLog);
-                            tmpFoundPageNumber = true;
+                            double x, y, z;
+                            objTextBox.GetOrigin(out x, out y, out z);         
+                            if ((x >= (objSheetSetup.SheetWidth - 0.030)) && (y >= objSheetSetup.SheetHeight - 0.030))
+                            {
+                                tmpOperationNumber = usunSpecjalne(objTextBox.Text, textBoxLog);
+                                tmpFoundPageNumber = true;
+                            }
+                                
                         }
                     }
 
                     if (tmpFoundPageNumber == true)
-                        try {
+                        try
+                        {
                             putStampAndExport(tmpPage, tmpPage, xlsOsoba, xlsData, elementName, elementRev, tmpOperationNumber, textBoxLog);
-                        } catch(Exception ex)
+                        }
+                        catch (Exception ex)
                         {
                             MessageBox.Show(ex.Message, "błąd", MessageBoxButtons.OK);
                         }
-                    else textBoxLog.AppendText(string.Format("\r\nNa stronie {0} nie znaleziono indeksu strony. Eksport tej ztrony został pominięty.\r\nSprawdź poprawność opisu tej strony", sheet.Name));
+                    else
+                    {
+                        string sheetName = sheet.Name.ToString();
+
+                        if (sheetName.IndexOf("KOOP", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            putStampAndExport(tmpPage, tmpPage, xlsOsoba, xlsData, elementName, elementRev, "kooperacja", textBoxLog);
+                        }
+                        else
+                        {
+                            textBoxLog.AppendText(string.Format("\r\n================\r\nNa stronie {0} nie znaleziono indeksu strony.\r\nEksport tej ztrony został pominięty.\r\nSprawdź poprawność opisu tej strony", sheet.Name));
+                        }
+                    }
+                    tmpPage++;
                 }
+                
                 mergeToPdfRange_simple(projectExportPath, elementName);
 
                 textBoxLog.AppendText("\r\n-- Zakończono eksport dokumentacji -- ");
